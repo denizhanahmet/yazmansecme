@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Yazman Seçme</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <!-- Öğretmen Listesi -->
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow border-primary">
+                    <div class="card-header bg-primary text-white text-center">
+                        <b>Öğretmen Listesi</b>
+                    </div>
+                    <ul class="list-group list-group-flush" id="teacher-list">
+                        {% for t in teachers %}
+                        <li class="list-group-item d-flex align-items-center">
+                            <input type="checkbox" class="form-check-input me-2 teacher-checkbox" id="teacher_{{ loop.index }}" value="{{ t }}" checked>
+                            <label class="form-check-label flex-grow-1" for="teacher_{{ loop.index }}">{{ t }}</label>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <!-- İşlem Alanı -->
+            <div class="col-lg-8">
+                <div class="card shadow border-0">
+                    <div class="card-body">
+                        <h2 class="card-title text-center mb-4 text-primary">
+                            <i class="bi bi-person-lines-fill"></i> Yazman Seçme Uygulaması
+                        </h2>
+                        <form method="post" action="/add_teacher" class="row g-2 mb-3">
+                            <div class="col-8">
+                                <input type="text" name="teacher_name" class="form-control" placeholder="Yeni öğretmen adı" required>
+                            </div>
+                            <div class="col-4 d-grid">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-plus-circle"></i> Ekle
+                                </button>
+                            </div>
+                        </form>
+                        <form method="post" action="/remove_teacher" class="row g-2 mb-3">
+                            <div class="col-8">
+                                <select name="teacher_name" class="form-select" required>
+                                    {% for t in teachers %}
+                                    <option value="{{ t }}">{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-4 d-grid">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash"></i> Listeden Çıkar
+                                </button>
+                            </div>
+                        </form>
+                        <div class="mb-3">
+                            <label for="num_to_select" class="form-label">Kaç yazman seçilsin?</label>
+                            <input type="number" id="num_to_select" class="form-control" min="1" max="{{ teachers|length }}" value="1">
+                        </div>
+                        <div class="d-grid mb-3">
+                            <button id="select-btn" type="button" class="btn btn-primary btn-lg">
+                                <i class="bi bi-shuffle"></i> Yazmanları Belirle
+                            </button>
+                        </div>
+                        <div id="countdown" class="h4 text-center text-secondary"></div>
+                        <div id="selected-teachers" class="alert alert-info text-center d-none"></div>
+                    </div>
+                    <div class="card-footer text-center small text-muted">
+                        <i class="bi bi-info-circle"></i> Öğretmen ekleyip çıkarabilir, tik ile kuraya dahil edilecekları seçebilirsiniz.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('select-btn').onclick = function() {
+            let num = document.getElementById('num_to_select').value;
+            let checkedTeachers = Array.from(document.querySelectorAll('.teacher-checkbox:checked')).map(cb => cb.value);
+            if (checkedTeachers.length === 0) {
+                alert("En az bir öğretmen seçmelisiniz!");
+                return;
+            }
+            if (num > checkedTeachers.length) {
+                alert("Seçilecek yazman sayısı, seçili öğretmen sayısından fazla olamaz!");
+                return;
+            }
+            let countdown = 3;
+            document.getElementById('selected-teachers').classList.add('d-none');
+            document.getElementById('countdown').innerText = countdown + '...';
+            let interval = setInterval(function() {
+                countdown--;
+                if (countdown > 0) {
+                    document.getElementById('countdown').innerText = countdown + '...';
+                } else {
+                    clearInterval(interval);
+                    document.getElementById('countdown').innerText = 'Seçiliyor...';
+                    fetch('/select_teachers', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                num_to_select: num,
+                                selected_teachers: checkedTeachers
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            document.getElementById('selected-teachers').innerHTML = '<i class="bi bi-award-fill text-warning"></i> <b>Seçilen Yazmanlar:</b> <br>' + data.selected_teachers.map(t => `<span class="badge bg-primary m-1 fs-5">${t}</span>`).join(' ');
+                            document.getElementById('selected-teachers').classList.remove('d-none');
+                            document.getElementById('countdown').innerText = '';
+                        });
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+
+</html>
